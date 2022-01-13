@@ -45,7 +45,9 @@
   "bugs": {
     "url": "https://github.com/GameWithPixels/PixelsWebPackage/issues"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@types/web-bluetooth": "^0.0.12"
+  },
   "devDependencies": {
     "@commitlint/cli": "^13.1.0",
     "@commitlint/config-conventional": "^13.1.0",
