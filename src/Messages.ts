@@ -4,7 +4,7 @@
 
 let _enumValue = 0
 function _genEVal(value?: number): number {
-  if (value) {
+  if (value !== undefined) {
     _enumValue = value
   }
   return _enumValue++
@@ -94,12 +94,33 @@ export interface Message {
 // Union type of Message and MessageType types.
 export type MessageOrType = Message | MessageType
 
+// Gets the message type from the given object.
+export function getMessageType(msgOrType: MessageOrType): MessageType {
+  return typeof msgOrType === 'number' ? msgOrType : msgOrType.type
+}
+
+// Type predicate for Message class.
+export function isMessage(obj: unknown): obj is Message {
+  return (obj as Message).type !== undefined
+}
+
+// Get the message name (as listed in MessageTypeValues).
+export function getMessageName(msgOrType: MessageOrType): string {
+  const msgType = getMessageType(msgOrType)
+  for (const [key, value] of Object.entries(MessageTypeValues)) {
+    if (value === msgType) {
+      return key
+    }
+  }
+  throw Error(`${msgType} is not a value in ${MessageTypeValues}`)
+}
+
 // Serialize the given Pixel message into a Uint8Array.
-export function serializeMessage(message_or_type: MessageOrType): Uint8Array {
-  if (typeof message_or_type === 'number') {
-    return Uint8Array.of(message_or_type)
+export function serializeMessage(msgOrType: MessageOrType): Uint8Array {
+  if (typeof msgOrType === 'number') {
+    return Uint8Array.of(msgOrType)
   } else {
-    const msg = message_or_type as Blink
+    const msg = msgOrType as Blink
     const dataView = new DataView(new ArrayBuffer(6))
     dataView.setUint8(0, msg.type)
     dataView.setUint8(1, msg.flashCount)
@@ -312,9 +333,9 @@ export class Rssi implements Message {
   readonly type: MessageType = MessageTypeValues.Rssi
 
   // The RSSI value, between 0 and 65535.
-  readonly value: number
+  readonly rssi: number
 
-  constructor(value: number) {
-    this.value = value
+  constructor(rssi: number) {
+    this.rssi = rssi
   }
 }
