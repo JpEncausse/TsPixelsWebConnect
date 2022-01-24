@@ -19,7 +19,7 @@
     "package": "npm run build && npm pack",
     "test": "jest --no-cache --runInBand",
     "test:cov": "jest --coverage --no-cache --runInBand",
-    "addscope": "node tools/packagejson name @GameWithPixels/PixelsWebPackage"
+    "addscope": "node tools/packagejson name @systemic-games/pixels-library"
   },
   "publishConfig": {
     "access": "public"
