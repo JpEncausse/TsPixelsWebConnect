@@ -136,10 +136,11 @@ export function serializeMessage(msgOrType: MessageOrType): Uint8Array {
     return Uint8Array.of(msgOrType);
   } else {
     const msg = msgOrType as Blink;
-    const dataView = new DataView(new ArrayBuffer(6));
+    const dataView = new DataView(new ArrayBuffer(8));
     dataView.setUint8(0, msg.type);
     dataView.setUint8(1, msg.flashCount);
     dataView.setUint32(2, msg.color, true);
+    dataView.setUint16(6, msg.duration, true);
     return new Uint8Array(dataView.buffer);
   }
 }
@@ -163,10 +164,11 @@ export function deserializeMessage(buffer: ArrayBuffer): MessageOrType {
     index += inc;
     return v;
   }
+  // Note: serialization needs to have little endianness
   const readU8 = () => incAndRet(dataView.getUint8(index), 1);
-  const readU16 = () => incAndRet(dataView.getUint16(index, true), 2); // Little endianness
-  const readU32 = () => incAndRet(dataView.getUint32(index, true), 4); // Little endianness
-  const readFloat = () => incAndRet(dataView.getFloat32(index, true), 4); // Little endianness
+  const readU16 = () => incAndRet(dataView.getUint16(index, true), 2);
+  const readU32 = () => incAndRet(dataView.getUint32(index, true), 4);
+  const readFloat = () => incAndRet(dataView.getFloat32(index, true), 4);
   // Can only be called last as it reads through the end of the buffer
   function readString() {
     const str = new TextDecoder().decode(dataView.buffer.slice(index));
@@ -332,7 +334,7 @@ export class Blink implements Message {
   readonly duration: number;
 
   /** Instantiates a blink message from a flash count, color and total duration in milliseconds. */
-  constructor(flashCount: number, color: number, duration = 3000) {
+  constructor(flashCount: number, color: number, duration: number) {
     this.flashCount = flashCount;
     this.color = color;
     this.duration = duration;

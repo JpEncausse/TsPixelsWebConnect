@@ -382,10 +382,16 @@ export class Pixel {
 
   /**
    * Requests the Pixel to blink and wait for a confirmation.
+   * @param color Blink color.
+   * @param count Number of blinks.
+   * @param duration Total duration in milliseconds.
    * @returns A promise.
    */
-  async blink(color: number, count: number): Promise<void> {
-    await this.sendAndWaitForMsg(new Blink(count, color), MessageTypeValues.BlinkFinished);
+  async blink(color: number, count: number, duration = 3000): Promise<void> {
+    await this.sendAndWaitForMsg(
+      new Blink(count, color, duration),
+      MessageTypeValues.BlinkFinished
+    );
   }
 
   // Log the given message prepended with a timestamp and the Pixel name
