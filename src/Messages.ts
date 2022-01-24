@@ -1,4 +1,4 @@
-import { enumVal } from './Utils'
+import { enumVal } from "./Utils";
 
 // Lists all the Pixel dice message types.
 // The value is used for the first byte of data in a Pixel message to identify it's type.
@@ -68,121 +68,113 @@ export const MessageTypeValues = {
   LightUpFace: enumVal(),
   SetLEDToColor: enumVal(),
   DebugAnimationController: enumVal(),
-} as const
+} as const;
 
 // The "enum" type for MessageTypeValues.
-export type MessageType =
-  typeof MessageTypeValues[keyof typeof MessageTypeValues]
+export type MessageType = typeof MessageTypeValues[keyof typeof MessageTypeValues];
 
 // Base type for all Pixels messages.
 // Note: messages that have no specific data don't require a class,
 // a MessageType value may be used instead.
 export interface Message {
-  readonly type: MessageType
+  readonly type: MessageType;
 }
 
 // Union type of Message and MessageType types.
-export type MessageOrType = Message | MessageType
+export type MessageOrType = Message | MessageType;
 
 // Gets the message type from the given object.
 export function getMessageType(msgOrType: MessageOrType): MessageType {
-  return typeof msgOrType === 'number' ? msgOrType : msgOrType.type
+  return typeof msgOrType === "number" ? msgOrType : msgOrType.type;
 }
 
 // Type predicate for Message class.
 export function isMessage(obj: unknown): obj is Message {
-  return (obj as Message).type !== undefined
+  return (obj as Message).type !== undefined;
 }
 
 // Get the message name (as listed in MessageTypeValues).
 export function getMessageName(msgOrType: MessageOrType): string {
-  const msgType = getMessageType(msgOrType)
+  const msgType = getMessageType(msgOrType);
   for (const [key, value] of Object.entries(MessageTypeValues)) {
     if (value === msgType) {
-      return key
+      return key;
     }
   }
-  throw Error(`${msgType} is not a value in ${MessageTypeValues}`)
+  throw Error(`${msgType} is not a value in ${MessageTypeValues}`);
 }
 
 // Serialize the given Pixel message into a Uint8Array.
 export function serializeMessage(msgOrType: MessageOrType): Uint8Array {
-  if (typeof msgOrType === 'number') {
-    return Uint8Array.of(msgOrType)
+  if (typeof msgOrType === "number") {
+    return Uint8Array.of(msgOrType);
   } else {
-    const msg = msgOrType as Blink
-    const dataView = new DataView(new ArrayBuffer(6))
-    dataView.setUint8(0, msg.type)
-    dataView.setUint8(1, msg.flashCount)
-    dataView.setUint32(2, msg.color, true)
-    return new Uint8Array(dataView.buffer)
+    const msg = msgOrType as Blink;
+    const dataView = new DataView(new ArrayBuffer(6));
+    dataView.setUint8(0, msg.type);
+    dataView.setUint8(1, msg.flashCount);
+    dataView.setUint32(2, msg.color, true);
+    return new Uint8Array(dataView.buffer);
   }
 }
 
 // Attempts to deserialize the data of the given buffer into a Pixel message.
 export function deserializeMessage(buffer: ArrayBuffer): MessageOrType {
   if (!buffer?.byteLength) {
-    throw new Error('Empty buffer')
+    throw new Error("Empty buffer");
   }
 
-  const dataView = new DataView(buffer)
-  let index = 0
+  const dataView = new DataView(buffer);
+  let index = 0;
   function incAndRet<T>(v: T, inc: number) {
-    index += inc
-    return v
+    index += inc;
+    return v;
   }
-  const readU8 = () => incAndRet(dataView.getUint8(index), 1)
-  const readU16 = () => incAndRet(dataView.getUint16(index, true), 2) // Little endianness
-  const readU32 = () => incAndRet(dataView.getUint32(index, true), 4) // Little endianness
-  const readFloat = () => incAndRet(dataView.getFloat32(index, true), 4) // Little endianness
+  const readU8 = () => incAndRet(dataView.getUint8(index), 1);
+  const readU16 = () => incAndRet(dataView.getUint16(index, true), 2); // Little endianness
+  const readU32 = () => incAndRet(dataView.getUint32(index, true), 4); // Little endianness
+  const readFloat = () => incAndRet(dataView.getFloat32(index, true), 4); // Little endianness
   // Can only be called last as it reads through the end of the buffer
   function readString() {
-    const str = new TextDecoder().decode(dataView.buffer.slice(index))
-    const c = str.indexOf('\0') // We might have trailing null characters
-    return c >= 0 ? str.substring(0, c) : str
+    const str = new TextDecoder().decode(dataView.buffer.slice(index));
+    const c = str.indexOf("\0"); // We might have trailing null characters
+    return c >= 0 ? str.substring(0, c) : str;
   }
 
   // First byte is message type
-  const msgType = readU8()
+  const msgType = readU8();
   switch (msgType) {
     case MessageTypeValues.IAmADie:
-      const diceType = readU8()
-      const designAndColor = readU8()
-      index += 1
-      const dataSetHash = readU32()
-      const deviceId = readU32()
-      const flashSize = readU16()
-      const version = readString()
-      return new IAmADie(
-        diceType,
-        designAndColor,
-        dataSetHash,
-        deviceId,
-        flashSize,
-        version
-      )
+      const diceType = readU8();
+      const designAndColor = readU8();
+      index += 1;
+      const dataSetHash = readU32();
+      const deviceId = readU32();
+      const flashSize = readU16();
+      const version = readString();
+      return new IAmADie(diceType, designAndColor, dataSetHash, deviceId, flashSize, version);
 
     case MessageTypeValues.RollState:
-      const state = readU8()
-      const face = readU8() + 1
-      return new RollState(state, face)
+      const state = readU8();
+      const face = readU8() + 1;
+      return new RollState(state, face);
 
     case MessageTypeValues.PlaySound:
-      const clipId = readU16()
-      return new PlaySound(clipId)
+      const clipId = readU16();
+      return new PlaySound(clipId);
 
     case MessageTypeValues.BatteryLevel:
-      const level = readFloat()
-      const voltage = readFloat()
-      const charging = readU8() != 0
-      return new BatteryLevel(level, voltage, charging)
+      const level = readFloat();
+      const voltage = readFloat();
+      const charging = readU8() != 0;
+      return new BatteryLevel(level, voltage, charging);
 
     case MessageTypeValues.Rssi:
-      const value = readU16()
-      return new Rssi(value)
+      const value = readU16();
+      return new Rssi(value);
 
     default:
-      return msgType
+      return msgType;
   }
 }
 
@@ -201,20 +193,20 @@ export const PixelDesignAndColorValues = {
   Hematite_Grey: enumVal(),
   Midnight_Galaxy: enumVal(),
   Aurora_Sky: enumVal(),
-} as const
+} as const;
 
 export type PixelDesignAndColor =
-  typeof PixelDesignAndColorValues[keyof typeof PixelDesignAndColorValues]
+  typeof PixelDesignAndColorValues[keyof typeof PixelDesignAndColorValues];
 
 export class IAmADie implements Message {
-  readonly type: MessageType = MessageTypeValues.IAmADie
+  readonly type: MessageType = MessageTypeValues.IAmADie;
 
-  readonly diceType: number
-  readonly designAndColor: PixelDesignAndColor
-  readonly dataSetHash: number
-  readonly pixelId: number
-  readonly flashSize: number
-  readonly version: string
+  readonly diceType: number;
+  readonly designAndColor: PixelDesignAndColor;
+  readonly dataSetHash: number;
+  readonly pixelId: number;
+  readonly flashSize: number;
+  readonly version: string;
 
   constructor(
     diceType: number,
@@ -224,12 +216,12 @@ export class IAmADie implements Message {
     flashSize: number,
     version: string
   ) {
-    this.diceType = diceType
-    this.designAndColor = designAndColor
-    this.dataSetHash = dataSetHash
-    this.pixelId = pixelId
-    this.flashSize = flashSize
-    this.version = version
+    this.diceType = diceType;
+    this.designAndColor = designAndColor;
+    this.dataSetHash = dataSetHash;
+    this.pixelId = pixelId;
+    this.flashSize = flashSize;
+    this.version = version;
   }
 }
 
@@ -249,83 +241,82 @@ export const PixelRollStateValues = {
 
   // The Pixel is resting in a crooked position.
   Crooked: enumVal(),
-} as const
+} as const;
 
 // The "enum" type for PixelRollStateValues.
-export type PixelRollState =
-  typeof PixelRollStateValues[keyof typeof PixelRollStateValues]
+export type PixelRollState = typeof PixelRollStateValues[keyof typeof PixelRollStateValues];
 
 // Message send by a Pixel to notify of its rolling state.
 export class RollState implements Message {
-  readonly type: MessageType = MessageTypeValues.RollState
+  readonly type: MessageType = MessageTypeValues.RollState;
 
   // Current roll state.
-  readonly state: PixelRollState
+  readonly state: PixelRollState;
 
   // Face number (if applicable), starts at 1.
-  readonly face: number
+  readonly face: number;
 
   constructor(state: PixelRollState, face: number) {
-    this.state = state
-    this.face = face
+    this.state = state;
+    this.face = face;
   }
 }
 
 // Message send by a Pixel to request playing a specific sound clip.
 export class PlaySound implements Message {
-  readonly type: MessageType = MessageTypeValues.PlaySound
+  readonly type: MessageType = MessageTypeValues.PlaySound;
 
-  readonly clipId: number
+  readonly clipId: number;
 
   constructor(clipId: number) {
-    this.clipId = clipId
+    this.clipId = clipId;
   }
 }
 
 // Message send to a Pixel to have it blink its LEDs.
 export class Blink implements Message {
-  readonly type: MessageType = MessageTypeValues.Blink
+  readonly type: MessageType = MessageTypeValues.Blink;
 
   // Number of flashes.
-  readonly flashCount: number
+  readonly flashCount: number;
 
   // Color to use the flash.
-  readonly color: number
+  readonly color: number;
 
   constructor(flashCount: number, color: number) {
-    this.flashCount = flashCount
-    this.color = color
+    this.flashCount = flashCount;
+    this.color = color;
   }
 }
 
 // Message send by a Pixel to notify of its battery level and state.
 export class BatteryLevel implements Message {
-  readonly type: MessageType = MessageTypeValues.BatteryLevel
+  readonly type: MessageType = MessageTypeValues.BatteryLevel;
 
   // The battery charge level, between 0 and 1.
-  readonly level: number
+  readonly level: number;
 
   // The battery measured voltage.
-  readonly voltage: number
+  readonly voltage: number;
 
   // Whether the batter is charging.
-  readonly charging: boolean
+  readonly charging: boolean;
 
   constructor(level: number, voltage: number, charging: boolean) {
-    this.level = level
-    this.voltage = voltage
-    this.charging = charging
+    this.level = level;
+    this.voltage = voltage;
+    this.charging = charging;
   }
 }
 
 // Message send by a Pixel to notify of its measured RSSI.
 export class Rssi implements Message {
-  readonly type: MessageType = MessageTypeValues.Rssi
+  readonly type: MessageType = MessageTypeValues.Rssi;
 
   // The RSSI value, between 0 and 65535.
-  readonly rssi: number
+  readonly rssi: number;
 
   constructor(rssi: number) {
-    this.rssi = rssi
+    this.rssi = rssi;
   }
 }

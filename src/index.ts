@@ -21,7 +21,7 @@ import {
   ConnectionEventReason,
   ConnectionEventFunction,
   Pixel,
-} from './Pixel'
+} from "./Pixel";
 
 export {
   serviceUuid,
@@ -34,7 +34,7 @@ export {
   ConnectionEventFunction,
   requestPixel,
   Pixel,
-}
+};
 
 import {
   MessageTypeValues,
@@ -53,7 +53,7 @@ import {
   Blink,
   BatteryLevel,
   Rssi,
-} from './Messages'
+} from "./Messages";
 
 export {
   MessageTypeValues,
@@ -72,4 +72,4 @@ export {
   Blink,
   BatteryLevel,
   Rssi,
-}
+};
