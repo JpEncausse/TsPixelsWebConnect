@@ -1,8 +1,11 @@
 import { enumVal } from "./Utils";
 
-// Lists all the Pixel dice message types.
-// The value is used for the first byte of data in a Pixel message to identify it's type.
-// These message identifiers have to match up with the ones on the firmware.
+/**
+ * Lists all the Pixel dice message types.
+ * The value is used for the first byte of data in a Pixel message to identify it's type.
+ * These message identifiers have to match up with the ones on the firmware.
+ * @enum
+ */
 export const MessageTypeValues = {
   None: enumVal(0),
   WhoAreYou: enumVal(),
@@ -70,30 +73,49 @@ export const MessageTypeValues = {
   DebugAnimationController: enumVal(),
 } as const;
 
-// The "enum" type for MessageTypeValues.
+/** The "enum" type for {@link MessageTypeValues}. */
 export type MessageType = typeof MessageTypeValues[keyof typeof MessageTypeValues];
 
-// Base type for all Pixels messages.
-// Note: messages that have no specific data don't require a class,
-// a MessageType value may be used instead.
+/**
+ * Base type for all Pixels messages.
+ * Note: messages that have no specific data don't require a class,
+ * a {@link MessageTypeValue} is used instead.
+ */
 export interface Message {
+  /** Type of the message. */
   readonly type: MessageType;
 }
 
-// Union type of Message and MessageType types.
+/**
+ * Union type of {@link Message} and {@link MessageType} types.
+ * Messages without parameter have no {@link Message} class to represent them,
+ * instead they are represent by the corresponding {@link MessageTypeValue}.
+ */
 export type MessageOrType = Message | MessageType;
 
-// Gets the message type from the given object.
+/**
+ * Gets the message type of the given message or message type value.
+ * @param msgOrType A message or a message type value.
+ * @returns The message type.
+ */
 export function getMessageType(msgOrType: MessageOrType): MessageType {
   return typeof msgOrType === "number" ? msgOrType : msgOrType.type;
 }
 
-// Type predicate for Message class.
+/**
+ * Type predicate for {@link Message} class.
+ * @param obj Any object.
+ * @returns Whether the given object is a {@link Message}.
+ */
 export function isMessage(obj: unknown): obj is Message {
   return (obj as Message).type !== undefined;
 }
 
-// Get the message name (as listed in MessageTypeValues).
+/**
+ * Get the message name (as listed in {@link MessageTypeValues}).
+ * @param msgOrType A message or a message type value.
+ * @returns The message name.
+ */
 export function getMessageName(msgOrType: MessageOrType): string {
   const msgType = getMessageType(msgOrType);
   for (const [key, value] of Object.entries(MessageTypeValues)) {
@@ -104,7 +126,11 @@ export function getMessageName(msgOrType: MessageOrType): string {
   throw Error(`${msgType} is not a value in ${MessageTypeValues}`);
 }
 
-// Serialize the given Pixel message into a Uint8Array.
+/**
+ * Serialize the given Pixel message.
+ * @param msgOrType A message or a message type value.
+ * @returns The serialized data.
+ */
 export function serializeMessage(msgOrType: MessageOrType): Uint8Array {
   if (typeof msgOrType === "number") {
     return Uint8Array.of(msgOrType);
@@ -118,13 +144,20 @@ export function serializeMessage(msgOrType: MessageOrType): Uint8Array {
   }
 }
 
-// Attempts to deserialize the data of the given buffer into a Pixel message.
+/**
+ * Attempts to deserialize the data of the given buffer into a Pixel message.
+ * @param buffer The data to deserialize the message from.
+ * @returns The deserialized message or just its type value (for messages with no class).
+ */
 export function deserializeMessage(buffer: ArrayBuffer): MessageOrType {
   if (!buffer?.byteLength) {
     throw new Error("Empty buffer");
   }
 
+  // Get the data view
   const dataView = new DataView(buffer);
+
+  // Helpers to read the data sequentially
   let index = 0;
   function incAndRet<T>(v: T, inc: number) {
     index += inc;
@@ -174,11 +207,15 @@ export function deserializeMessage(buffer: ArrayBuffer): MessageOrType {
       return new Rssi(value);
 
     default:
+      // Any other message
       return msgType;
   }
 }
 
-// Available combinations of Pixel designs and colors.
+/**
+ * Available combinations of Pixel designs and colors.
+ * @enum
+ */
 export const PixelDesignAndColorValues = {
   Unknown: enumVal(0),
   Generic: enumVal(),
@@ -195,9 +232,11 @@ export const PixelDesignAndColorValues = {
   Aurora_Sky: enumVal(),
 } as const;
 
+/** The "enum" type for {@link PixelDesignAndColorValues}. */
 export type PixelDesignAndColor =
   typeof PixelDesignAndColorValues[keyof typeof PixelDesignAndColorValues];
 
+/** Message send by a Pixel after receiving a "WhoAmI". */
 export class IAmADie implements Message {
   readonly type: MessageType = MessageTypeValues.IAmADie;
 
@@ -225,7 +264,10 @@ export class IAmADie implements Message {
   }
 }
 
-// Pixel roll states.
+/**
+ * Pixel roll states.
+ * @enum
+ */
 export const PixelRollStateValues = {
   // The Pixel roll state could not be determined.
   Unknown: enumVal(0),
@@ -243,65 +285,74 @@ export const PixelRollStateValues = {
   Crooked: enumVal(),
 } as const;
 
-// The "enum" type for PixelRollStateValues.
+/** The "enum" type for {@link PixelRollStateValues}. */
 export type PixelRollState = typeof PixelRollStateValues[keyof typeof PixelRollStateValues];
 
-// Message send by a Pixel to notify of its rolling state.
+/** Message send by a Pixel to notify of its rolling state. */
 export class RollState implements Message {
   readonly type: MessageType = MessageTypeValues.RollState;
 
-  // Current roll state.
+  /** Current roll state. */
   readonly state: PixelRollState;
 
-  // Face number (if applicable), starts at 1.
+  /** Face number (if applicable), starts at 1. */
   readonly face: number;
 
+  /** Instantiates a roll state message from a {@link PixelRollStateValues} and face number. */
   constructor(state: PixelRollState, face: number) {
     this.state = state;
     this.face = face;
   }
 }
 
-// Message send by a Pixel to request playing a specific sound clip.
+/** Message send by a Pixel to request playing a specific sound clip. */
 export class PlaySound implements Message {
   readonly type: MessageType = MessageTypeValues.PlaySound;
 
+  /** The id for the clip. */
   readonly clipId: number;
 
+  /** Instantiates a play sound message from a clip id. */
   constructor(clipId: number) {
     this.clipId = clipId;
   }
 }
 
-// Message send to a Pixel to have it blink its LEDs.
+/** Message send to a Pixel to have it blink its LEDs. */
 export class Blink implements Message {
   readonly type: MessageType = MessageTypeValues.Blink;
 
-  // Number of flashes.
+  /** Number of flashes. */
   readonly flashCount: number;
 
-  // Color to use the flash.
+  /** Color to blink. */
   readonly color: number;
 
-  constructor(flashCount: number, color: number) {
+  /** Total duration in milliseconds. */
+  readonly duration: number;
+
+  /** Instantiates a blink message from a flash count, color and total duration in milliseconds. */
+  constructor(flashCount: number, color: number, duration = 3000) {
     this.flashCount = flashCount;
     this.color = color;
+    this.duration = duration;
   }
 }
 
-// Message send by a Pixel to notify of its battery level and state.
+/** Message send by a Pixel to notify of its battery level and state. */
 export class BatteryLevel implements Message {
   readonly type: MessageType = MessageTypeValues.BatteryLevel;
 
-  // The battery charge level, between 0 and 1.
+  /** The battery charge level, floating value between 0 and 1. */
   readonly level: number;
 
-  // The battery measured voltage.
+  /** The battery measured voltage. */
   readonly voltage: number;
 
-  // Whether the batter is charging.
+  /** Whether the battery is charging. */
   readonly charging: boolean;
 
+  /** Instantiates a battery level message from a battery level, voltage and charging state. */
   constructor(level: number, voltage: number, charging: boolean) {
     this.level = level;
     this.voltage = voltage;
@@ -309,13 +360,14 @@ export class BatteryLevel implements Message {
   }
 }
 
-// Message send by a Pixel to notify of its measured RSSI.
+/** Message send by a Pixel to notify of its measured RSSI. */
 export class Rssi implements Message {
   readonly type: MessageType = MessageTypeValues.Rssi;
 
-  // The RSSI value, between 0 and 65535.
+  /** The RSSI value, between 0 and 65535. */
   readonly rssi: number;
 
+  /** Instantiates a rssi message from a RSSI value. */
   constructor(rssi: number) {
     this.rssi = rssi;
   }

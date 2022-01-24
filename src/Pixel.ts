@@ -14,71 +14,79 @@ import {
   Blink,
 } from "./Messages";
 
-import { enumVal, exponentialBackOff, Mutex } from "./Utils";
+import { exponentialBackOff, Mutex } from "./Utils";
 
-// Pixel dice service UUID
+/** Pixel dice service UUID. */
 export const serviceUuid = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
-// Pixel dice notify characteristic UUID
+
+/** Pixel dice notify characteristic UUID. */
 export const notifyCharacteristicUuid = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
-// Pixel dice write characteristic UUID
+
+/** Pixel dice write characteristic UUID. */
 export const writeCharacteristicUuid = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
 
-// Peripheral connection events.
+/**
+ *  Peripheral connection events.
+ * @enum
+ */
 export const ConnectionEventValues = {
-  // Raised at the beginning of the connect sequence and is followed either by Connected or FailedToConnect.
-  Connecting: enumVal(0),
+  /** Raised at the beginning of the connect sequence and is followed either by Connected or FailedToConnect. */
+  Connecting: "connecting",
 
-  // Raised once the peripheral is connected, just before services are being discovered.
-  Connected: enumVal(),
+  /** Raised once the peripheral is connected, just before services are being discovered. */
+  Connected: "connected",
 
-  // Raised when the peripheral fails to connect, the reason for the failure is also given.
-  FailedToConnect: enumVal(),
+  /** Raised when the peripheral fails to connect, the reason for the failure is also given. */
+  FailedToConnect: "failedToConnect",
 
-  // Raised after a Connected event, once the required services have been discovered.
-  Ready: enumVal(),
+  /** Raised after a Connected event, once the required services have been discovered. */
+  Ready: "ready",
 
-  // Raised at the beginning of a user initiated disconnect.
-  Disconnecting: enumVal(),
+  /** Raised at the beginning of a user initiated disconnect. */
+  Disconnecting: "disconnecting",
 
-  // Raised when the peripheral is disconnected, the reason for the disconnection is also given.
-  Disconnected: enumVal(),
-};
+  /** Raised when the peripheral is disconnected, the reason for the disconnection is also given. */
+  Disconnected: "disconnected",
+} as const;
 
-// The "enum" type for ConnectionEventValues.
+/** The "enum" type for  {@link ConnectionEventValues}. */
 export type ConnectionEvent = typeof ConnectionEventValues[keyof typeof ConnectionEventValues];
 
-// Peripheral connection event reasons.
+/**
+ * Peripheral connection event reasons.
+ * @enum
+ */
 export const ConnectionEventReasonValues = {
-  // The disconnect happened for an unknown reason.
-  Unknown: enumVal(-1),
+  /** Unused at the moment - The disconnect happened for an unknown reason. */
+  Unknown: "unknown",
 
-  // The disconnect was initiated by user.
-  Success: enumVal(0),
+  /** The disconnect was initiated by user. */
+  Success: "success",
 
-  // Connection attempt canceled by user.
-  Canceled: enumVal(),
+  /** Unused at the moment - Connection attempt canceled by user. */
+  Canceled: "canceled",
 
-  // Peripheral doesn't have all required services.
-  NotSupported: enumVal(),
+  /** Unused at the moment -  Peripheral doesn't have all required services. */
+  NotSupported: "notSupported",
 
-  // Peripheral didn't responded in time.
-  Timeout: enumVal(),
+  /** Peripheral didn't responded in time. */
+  Timeout: "timeout",
 
-  // Peripheral was disconnected while in "auto connect" mode.
-  LinkLoss: enumVal(),
+  /** Peripheral was disconnected while in "auto connect" mode. */
+  LinkLoss: "linkLoss",
 
-  // The local device Bluetooth adapter is off.
-  AdapterOff: enumVal(),
+  /** Unused at the moment - The local device Bluetooth adapter is off. */
+  AdapterOff: "adapterOff",
 
-  // Disconnection was initiated by peripheral.
-  Peripheral: enumVal(),
-};
+  /** Unused at the moment -  Disconnection was initiated by peripheral. */
+  Peripheral: "peripheral",
+} as const;
 
-// The "enum" type for ConnectionEventReasonValues.
+/** The "enum" type for {@link ConnectionEventReasonValues}. */
 export type ConnectionEventReason =
   typeof ConnectionEventReasonValues[keyof typeof ConnectionEventReasonValues];
 
-// Callable for BLE peripheral connection event, with the reason.
+/** Callable for a BLE peripheral connection event, with the reason. */
 export type ConnectionEventFunction = (
   event: ConnectionEvent,
   reason: ConnectionEventReason
@@ -87,8 +95,12 @@ export type ConnectionEventFunction = (
 // Store Pixel instances to avoid creating more than one for the same device
 const _pixels = new Map<BluetoothDevice, Pixel>();
 
-// Request user to select a Pixel to connect to.
-// Pixels instances are kept and returned if the same die is selected again.
+/**
+ * Request user to select a Pixel to connect to.
+ * Pixels instances are kept and returned if the same die is selected again.
+ * @param connEv The connection event callback.
+ * @returns A promise that resolves to a {@link Pixel} instance.
+ */
 export async function requestPixel(connEv?: ConnectionEventFunction): Promise<Pixel> {
   // Request user to select a Pixel
   const device = await navigator.bluetooth.requestDevice({
@@ -103,8 +115,11 @@ export async function requestPixel(connEv?: ConnectionEventFunction): Promise<Pi
   return pixel;
 }
 
-// Represents a Pixel die.
-// It may connect to and disconnect from the Pixel, and also send and receive messages.
+/**
+ * Represents a Pixel die.
+ * Most of its methods require that the instance is connected to the Pixel device.
+ * Call the {@link connect} method to initiate a connection.
+ */
 export class Pixel {
   private readonly _device: BluetoothDevice;
   private readonly _name: string;
@@ -116,23 +131,31 @@ export class Pixel {
   private _session?: Session = undefined;
   private _info?: IAmADie = undefined;
 
+  /** Gets the Pixel name. */
   get name(): string {
     return this._name;
   }
 
+  /** Indicates whether the Pixel is connected. */
   get connected(): boolean {
     return this._connected && (this._device.gatt?.connected ?? false);
   }
 
+  /** Indicates whether the Pixel is ready. */
   get ready(): boolean {
     return this.connected && this._info !== undefined;
   }
 
+  /** Gets the Pixel information, or undefined if not connected. */
   get info(): IAmADie | undefined {
     return this._info;
   }
 
-  // Instantiates a Pixel from a Bluetooth device.
+  /**
+   * Instantiates a Pixel from a Bluetooth device.
+   * @param device The Bluetooth device to use.
+   * @param connEv The connection event callback.
+   */
   constructor(device: BluetoothDevice, connEv?: ConnectionEventFunction) {
     this._device = device;
     if (!device.name) {
@@ -147,7 +170,7 @@ export class Pixel {
     device.addEventListener("gattserverdisconnected", (/*ev: Event*/) => {
       this.log("Disconnected!");
 
-      let reason = ConnectionEventReasonValues.Success;
+      let reason: ConnectionEventReason = ConnectionEventReasonValues.Success;
       if (this._connected) {
         // Disconnect not called by user code
         reason = this._reconnect
@@ -182,15 +205,20 @@ export class Pixel {
     });
   }
 
-  // Asynchronously connects to the Pixel.
-  // Throws a NetworkError on AbortError on failure to connect
-  // Other errors may be thrown on rare occasions
+  /**
+   * Asynchronously connects to the Pixel.
+   * Throws a `NetworkError` or an `AbortError` on failure to connect,
+   * other errors may be thrown on rare occasions.
+   * @param autoReconnect Wether to automatically try to reconnect to the Pixel when the connection is lost.
+   * @returns A promise resolving to this instance.
+   */
   async connect(autoReconnect = false): Promise<Pixel> {
     this._reconnect = autoReconnect;
     await this.reconnect();
     return this;
   }
 
+  // Internal connect method
   private async reconnect(): Promise<void> {
     // Our connect function
     const doConnect = async () => {
@@ -276,7 +304,7 @@ export class Pixel {
     });
   }
 
-  // Immediately disconnects from the Pixel.
+  /** Immediately disconnects from the Pixel. */
   disconnect(): void {
     const server = this._device.gatt;
     if (server?.connected) {
@@ -286,9 +314,12 @@ export class Pixel {
     }
   }
 
-  // Appends an event listener for received messages of the given type.
-  // The callback argument sets the callback that will be invoked when
-  // the event is dispatched.
+  /**
+   * Register a callback to be invoked on receiving messages of a given type.
+   * @param msgType The type of message to watch for.
+   * @param callback The callback that will be invoked when a message of the given type is received.
+   * @param options Usual event listener options.
+   */
   addMessageListener(
     msgType: MessageType,
     callback: EventListenerOrEventListenerObject | null,
@@ -298,8 +329,12 @@ export class Pixel {
     this._eventTarget.addEventListener(name, callback, options);
   }
 
-  // Removes the event listener in target's event listener list with the
-  // same type, callback, and options.
+  /**
+   * Unregister a callback invoked on receiving messages of the same type and options.
+   * @param msgType The type of message to watch for.
+   * @param callback The callback to unregister.
+   * @param options Usual event listener options.
+   */
   removeMessageListener(
     msgType: MessageType,
     callback: EventListenerOrEventListenerObject | null,
@@ -309,7 +344,10 @@ export class Pixel {
     this._eventTarget.removeEventListener(name, callback, options);
   }
 
-  // Asynchronously retrieves the roll state.
+  /**
+   * Asynchronously retrieves the roll state.
+   * @returns A promise revolving to an object with the roll state information.
+   */
   async getRollState(): Promise<RollState> {
     const response = await this.sendAndWaitForMsg(
       MessageTypeValues.RequestRollState,
@@ -318,7 +356,10 @@ export class Pixel {
     return response as RollState;
   }
 
-  // Asynchronously gets the battery level.
+  /**
+   * Asynchronously gets the battery level.
+   * @returns A promise revolving to an object with the batter level information.
+   */
   async getBatteryLevel(): Promise<BatteryLevel> {
     const response = await this.sendAndWaitForMsg(
       MessageTypeValues.RequestBatteryLevel,
@@ -327,7 +368,10 @@ export class Pixel {
     return response as BatteryLevel;
   }
 
-  // Asynchronously gets the RSSI.
+  /**
+   * Asynchronously gets the RSSI.
+   * @returns A promise revolving to the RSSI value, between 0 and 65535.
+   */
   async getRssi(): Promise<number> {
     const response = await this.sendAndWaitForMsg(
       MessageTypeValues.RequestRssi,
@@ -336,11 +380,15 @@ export class Pixel {
     return (response as Rssi).rssi;
   }
 
-  // Requests the Pixel to blink and wait for a confirmation.
+  /**
+   * Requests the Pixel to blink and wait for a confirmation.
+   * @returns A promise.
+   */
   async blink(color: number, count: number): Promise<void> {
     await this.sendAndWaitForMsg(new Blink(count, color), MessageTypeValues.BlinkFinished);
   }
 
+  // Log the given message prepended with a timestamp and the Pixel name
   private log(msg: unknown): void {
     if (isMessage(msg)) {
       console.log(msg);
@@ -349,6 +397,7 @@ export class Pixel {
     }
   }
 
+  // Notify of connection event
   private notifyConnEv(
     ev: ConnectionEvent,
     reason: ConnectionEventReason = ConnectionEventReasonValues.Success
@@ -358,6 +407,7 @@ export class Pixel {
     }
   }
 
+  // Get the session object, throws an error if invalid
   private checkAndGetSession(): Session {
     if (this._session) {
       return this._session;
@@ -369,6 +419,7 @@ export class Pixel {
     }
   }
 
+  // Callback on notify characteristic value change
   private onValueChanged(dataView: DataView) {
     try {
       const msgOrType = deserializeMessage(dataView.buffer);
@@ -391,6 +442,7 @@ export class Pixel {
     }
   }
 
+  // Helper method that waits for a message from Pixel
   private waitForMsg(expectedMsgType: MessageType, timeoutMs = 5000): Promise<MessageOrType> {
     return new Promise((resolve, reject) => {
       const onMessage = (evt: Event) => {
@@ -405,6 +457,7 @@ export class Pixel {
     });
   }
 
+  // Helper method that sends a message and wait for a reply
   private async sendAndWaitForMsg(
     msgOrTypeToSend: MessageOrType,
     expectedMsgType: MessageType,
@@ -419,7 +472,7 @@ export class Pixel {
   }
 }
 
-// A Bluetooth session with a Pixel die.
+// A Bluetooth session with a Pixel die
 class Session {
   private readonly _service: BluetoothRemoteGATTService;
   private readonly _notify: BluetoothRemoteGATTCharacteristic;
@@ -452,6 +505,7 @@ class Session {
     };
   }
 
+  // Sends a message
   async send(msgOrType: MessageOrType, withoutResponse?: boolean) {
     this.log(`Sending message of type ${getMessageType(msgOrType)}`);
     const data = serializeMessage(msgOrType);
