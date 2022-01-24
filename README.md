@@ -1,6 +1,6 @@
 # Pixels Web Package
 
-This is the Pixels web package for front end web development.
+This is the Pixels web package for front end web developers.
 It enables communications between Pixels dice and a web browser
 using Bluetooth Low Energy.
 
@@ -56,3 +56,10 @@ pixel.addMessageListener(MessageTypeValues.RollState, (evt: Event) => {
     const msg = (evt as CustomEvent).detail as RollState
     log(`=> roll state: ${msg.state}, face ${msg.face}`)
 ```
+
+## Module documentation
+
+See the module's export documentation
+[here](https://gamewithpixels.github.io/PixelsWebPackage/modules.html).
+
+Documentation is generated with [TypeDoc](https://typedoc.org/).
