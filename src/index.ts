@@ -15,8 +15,27 @@ import {
   notifyCharacteristicUuid,
   writeCharacteristicUuid,
   requestPixel,
+  ConnectionEventValues,
+  ConnectionEvent,
+  ConnectionEventReasonValues,
+  ConnectionEventReason,
+  ConnectionEventFunction,
   Pixel,
 } from './Pixel'
+
+export {
+  serviceUuid,
+  notifyCharacteristicUuid,
+  writeCharacteristicUuid,
+  ConnectionEventValues,
+  ConnectionEvent,
+  ConnectionEventReasonValues,
+  ConnectionEventReason,
+  ConnectionEventFunction,
+  requestPixel,
+  Pixel,
+}
+
 import {
   MessageTypeValues,
   MessageType,
@@ -36,13 +55,6 @@ import {
   Rssi,
 } from './Messages'
 
-export {
-  serviceUuid,
-  notifyCharacteristicUuid,
-  writeCharacteristicUuid,
-  requestPixel,
-  Pixel,
-}
 export {
   MessageTypeValues,
   MessageType,

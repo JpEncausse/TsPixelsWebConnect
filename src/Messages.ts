@@ -1,86 +1,76 @@
-// A note about enums:
-// Typescript documentation recommends using "as const" over "enum"
-// https://www.typescriptlang.org/docs/handbook/enums.html#objects-vs-enums
-
-let _enumValue = 0
-function _genEVal(value?: number): number {
-  if (value !== undefined) {
-    _enumValue = value
-  }
-  return _enumValue++
-}
+import { enumVal } from './Utils'
 
 // Lists all the Pixel dice message types.
 // The value is used for the first byte of data in a Pixel message to identify it's type.
 // These message identifiers have to match up with the ones on the firmware.
 export const MessageTypeValues = {
-  None: _genEVal(0),
-  WhoAreYou: _genEVal(),
-  IAmADie: _genEVal(),
-  RollState: _genEVal(),
-  Telemetry: _genEVal(),
-  BulkSetup: _genEVal(),
-  BulkSetupAck: _genEVal(),
-  BulkData: _genEVal(),
-  BulkDataAck: _genEVal(),
-  TransferAnimationSet: _genEVal(),
-  TransferAnimationSetAck: _genEVal(),
-  TransferAnimationSetFinished: _genEVal(),
-  TransferSettings: _genEVal(),
-  TransferSettingsAck: _genEVal(),
-  TransferSettingsFinished: _genEVal(),
-  TransferTestAnimationSet: _genEVal(),
-  TransferTestAnimationSetAck: _genEVal(),
-  TransferTestAnimationSetFinished: _genEVal(),
-  DebugLog: _genEVal(),
-  PlayAnimation: _genEVal(),
-  PlayAnimationEvent: _genEVal(),
-  StopAnimation: _genEVal(),
-  PlaySound: _genEVal(),
-  RequestRollState: _genEVal(),
-  RequestAnimationSet: _genEVal(),
-  RequestSettings: _genEVal(),
-  RequestTelemetry: _genEVal(),
-  ProgramDefaultAnimationSet: _genEVal(),
-  ProgramDefaultAnimationSetFinished: _genEVal(),
-  Blink: _genEVal(),
-  BlinkFinished: _genEVal(),
-  RequestDefaultAnimationSetColor: _genEVal(),
-  DefaultAnimationSetColor: _genEVal(),
-  RequestBatteryLevel: _genEVal(),
-  BatteryLevel: _genEVal(),
-  RequestRssi: _genEVal(),
-  Rssi: _genEVal(),
-  Calibrate: _genEVal(),
-  CalibrateFace: _genEVal(),
-  NotifyUser: _genEVal(),
-  NotifyUserAck: _genEVal(),
-  TestHardware: _genEVal(),
-  SetStandardState: _genEVal(),
-  SetLEDAnimationState: _genEVal(),
-  SetBattleState: _genEVal(),
-  ProgramDefaultParameters: _genEVal(),
-  ProgramDefaultParametersFinished: _genEVal(),
-  SetDesignAndColor: _genEVal(),
-  SetDesignAndColorAck: _genEVal(),
-  SetCurrentBehavior: _genEVal(),
-  SetCurrentBehaviorAck: _genEVal(),
-  SetName: _genEVal(),
-  SetNameAck: _genEVal(),
+  None: enumVal(0),
+  WhoAreYou: enumVal(),
+  IAmADie: enumVal(),
+  RollState: enumVal(),
+  Telemetry: enumVal(),
+  BulkSetup: enumVal(),
+  BulkSetupAck: enumVal(),
+  BulkData: enumVal(),
+  BulkDataAck: enumVal(),
+  TransferAnimationSet: enumVal(),
+  TransferAnimationSetAck: enumVal(),
+  TransferAnimationSetFinished: enumVal(),
+  TransferSettings: enumVal(),
+  TransferSettingsAck: enumVal(),
+  TransferSettingsFinished: enumVal(),
+  TransferTestAnimationSet: enumVal(),
+  TransferTestAnimationSetAck: enumVal(),
+  TransferTestAnimationSetFinished: enumVal(),
+  DebugLog: enumVal(),
+  PlayAnimation: enumVal(),
+  PlayAnimationEvent: enumVal(),
+  StopAnimation: enumVal(),
+  PlaySound: enumVal(),
+  RequestRollState: enumVal(),
+  RequestAnimationSet: enumVal(),
+  RequestSettings: enumVal(),
+  RequestTelemetry: enumVal(),
+  ProgramDefaultAnimationSet: enumVal(),
+  ProgramDefaultAnimationSetFinished: enumVal(),
+  Blink: enumVal(),
+  BlinkFinished: enumVal(),
+  RequestDefaultAnimationSetColor: enumVal(),
+  DefaultAnimationSetColor: enumVal(),
+  RequestBatteryLevel: enumVal(),
+  BatteryLevel: enumVal(),
+  RequestRssi: enumVal(),
+  Rssi: enumVal(),
+  Calibrate: enumVal(),
+  CalibrateFace: enumVal(),
+  NotifyUser: enumVal(),
+  NotifyUserAck: enumVal(),
+  TestHardware: enumVal(),
+  SetStandardState: enumVal(),
+  SetLEDAnimationState: enumVal(),
+  SetBattleState: enumVal(),
+  ProgramDefaultParameters: enumVal(),
+  ProgramDefaultParametersFinished: enumVal(),
+  SetDesignAndColor: enumVal(),
+  SetDesignAndColorAck: enumVal(),
+  SetCurrentBehavior: enumVal(),
+  SetCurrentBehaviorAck: enumVal(),
+  SetName: enumVal(),
+  SetNameAck: enumVal(),
 
   // Testing
-  TestBulkSend: _genEVal(),
-  TestBulkReceive: _genEVal(),
-  SetAllLEDsToColor: _genEVal(),
-  AttractMode: _genEVal(),
-  PrintNormals: _genEVal(),
-  PrintA2DReadings: _genEVal(),
-  LightUpFace: _genEVal(),
-  SetLEDToColor: _genEVal(),
-  DebugAnimationController: _genEVal(),
+  TestBulkSend: enumVal(),
+  TestBulkReceive: enumVal(),
+  SetAllLEDsToColor: enumVal(),
+  AttractMode: enumVal(),
+  PrintNormals: enumVal(),
+  PrintA2DReadings: enumVal(),
+  LightUpFace: enumVal(),
+  SetLEDToColor: enumVal(),
+  DebugAnimationController: enumVal(),
 } as const
 
-// The "enum" type for MessageTypeValues
+// The "enum" type for MessageTypeValues.
 export type MessageType =
   typeof MessageTypeValues[keyof typeof MessageTypeValues]
 
@@ -198,19 +188,19 @@ export function deserializeMessage(buffer: ArrayBuffer): MessageOrType {
 
 // Available combinations of Pixel designs and colors.
 export const PixelDesignAndColorValues = {
-  Unknown: _genEVal(0),
-  Generic: _genEVal(),
-  V3_Orange: _genEVal(),
-  V4_BlackClear: _genEVal(),
-  V4_WhiteClear: _genEVal(),
-  V5_Grey: _genEVal(),
-  V5_White: _genEVal(),
-  V5_Black: _genEVal(),
-  V5_Gold: _genEVal(),
-  Onyx_Back: _genEVal(),
-  Hematite_Grey: _genEVal(),
-  Midnight_Galaxy: _genEVal(),
-  Aurora_Sky: _genEVal(),
+  Unknown: enumVal(0),
+  Generic: enumVal(),
+  V3_Orange: enumVal(),
+  V4_BlackClear: enumVal(),
+  V4_WhiteClear: enumVal(),
+  V5_Grey: enumVal(),
+  V5_White: enumVal(),
+  V5_Black: enumVal(),
+  V5_Gold: enumVal(),
+  Onyx_Back: enumVal(),
+  Hematite_Grey: enumVal(),
+  Midnight_Galaxy: enumVal(),
+  Aurora_Sky: enumVal(),
 } as const
 
 export type PixelDesignAndColor =
@@ -246,22 +236,22 @@ export class IAmADie implements Message {
 // Pixel roll states.
 export const PixelRollStateValues = {
   // The Pixel roll state could not be determined.
-  Unknown: _genEVal(0),
+  Unknown: enumVal(0),
 
   // The Pixel is resting in a position with a face up.
-  OnFace: _genEVal(),
+  OnFace: enumVal(),
 
   // The Pixel is being handled.
-  Handling: _genEVal(),
+  Handling: enumVal(),
 
   // The Pixel is rolling.
-  Rolling: _genEVal(),
+  Rolling: enumVal(),
 
   // The Pixel is resting in a crooked position.
-  Crooked: _genEVal(),
+  Crooked: enumVal(),
 } as const
 
-// The "enum" type for PixelRollStateValues
+// The "enum" type for PixelRollStateValues.
 export type PixelRollState =
   typeof PixelRollStateValues[keyof typeof PixelRollStateValues]
 
