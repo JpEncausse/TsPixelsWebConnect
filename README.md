@@ -54,7 +54,7 @@ const rssi = await pixel.getRssi();
 // Add listener to get notified when the Pixel roll state changes
 pixel.addMessageListener(MessageTypeValues.RollState, (evt: Event) => {
     const msg = (evt as CustomEvent).detail as RollState
-    log(`=> roll state: ${msg.state}, face ${msg.face}`)
+    log(`=> roll state: ${msg.state}, face ${msg.face}`);
 ```
 
 ## Module documentation
