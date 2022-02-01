@@ -11,8 +11,8 @@ At the time of writing, only Chrome, Edge and Opera browsers have
 support for these APIs.
 
 Currently all testing is done with Chrome on Windows 10.
-You may need to first set this flag to enable the Bluetooth API:
-`chrome://flags/#enable-experimental-web-platform-features`.
+If you're on Linux, you may need to first set this flag to enable the Web
+Bluetooth API: `chrome://flags/#enable-experimental-web-platform-features`.
 
 Please open a [ticket](https://github.com/GameWithPixels/PixelsWebPackage/issues)
 in GitHub if you're having any issue.
