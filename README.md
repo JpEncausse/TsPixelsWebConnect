@@ -12,7 +12,7 @@ support for these APIs.
 
 Currently all testing is done with Chrome on Windows 10.
 If you're on Linux, you may need to first set this flag to enable the Web
-Bluetooth API: `chrome://flags/#enable-experimental-web-platform-features`.
+Bluetooth API: `chrome://flags/#enable-web-bluetooth`.
 
 Please open a [ticket](https://github.com/GameWithPixels/PixelsWebPackage/issues)
 in GitHub if you're having any issue.
