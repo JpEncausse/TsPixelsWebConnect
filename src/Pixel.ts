@@ -315,6 +315,17 @@ export class Pixel {
   }
 
   /**
+   * Asynchronously revokes access to the Pixel.
+   * Be careful, this feature is experimental and requires users to turn on the
+   * `chrome://flags/#enable-web-bluetooth-new-permissions-backend` flag in
+   * Chrome version 101 and later.
+   * @returns A promise.
+   */
+  async forget(): Promise<void> {
+    await this._device.forget();
+  }
+
+  /**
    * Register a callback to be invoked on receiving messages of a given type.
    * @param msgType The type of message to watch for.
    * @param callback The callback that will be invoked when a message of the given type is received.
