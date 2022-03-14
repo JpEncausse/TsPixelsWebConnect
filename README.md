@@ -48,7 +48,7 @@ Here is simple code example:
 ```TypeScript
 // Ask user to select a Pixel
 const pixel = await requestPixel();
-log('Connecting...')
+log("Connecting...");
 await pixel.connect();
 
 // Get some info
@@ -60,8 +60,9 @@ const rssi = await pixel.getRssi();
 
 // Add listener to get notified when the Pixel roll state changes
 pixel.addMessageListener(MessageTypeValues.RollState, (evt: Event) => {
-    const msg = (evt as CustomEvent).detail as RollState
-    log(`=> roll state: ${msg.state}, face ${msg.face}`);
+  const msg = (evt as CustomEvent).detail as RollState;
+  log(`=> roll state: ${msg.state}, face ${msg.face}`);
+});
 ```
 
 ## Module documentation
