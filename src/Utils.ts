@@ -39,7 +39,8 @@ export async function exponentialBackOff({
   } catch (error) {
     if (retries !== 0) {
       //console.log(`Retrying in ${delay}s... (${retries} tries left)`);
-      const delay_ = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+      const delay_ = (ms: number) =>
+        new Promise((resolve) => setTimeout(resolve, ms));
       await delay_(delay * 1000);
       await exponentialBackOff({
         retries: retries - 1,

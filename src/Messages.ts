@@ -74,7 +74,8 @@ export const MessageTypeValues = {
 } as const;
 
 /** The "enum" type for {@link MessageTypeValues}. */
-export type MessageType = typeof MessageTypeValues[keyof typeof MessageTypeValues];
+export type MessageType =
+  typeof MessageTypeValues[keyof typeof MessageTypeValues];
 
 /**
  * Base type for all Pixels messages.
@@ -187,7 +188,14 @@ export function deserializeMessage(buffer: ArrayBuffer): MessageOrType {
       const deviceId = readU32();
       const flashSize = readU16();
       const version = readString();
-      return new IAmADie(diceType, designAndColor, dataSetHash, deviceId, flashSize, version);
+      return new IAmADie(
+        diceType,
+        designAndColor,
+        dataSetHash,
+        deviceId,
+        flashSize,
+        version
+      );
 
     case MessageTypeValues.RollState:
       const state = readU8();
@@ -288,7 +296,8 @@ export const PixelRollStateValues = {
 } as const;
 
 /** The "enum" type for {@link PixelRollStateValues}. */
-export type PixelRollState = typeof PixelRollStateValues[keyof typeof PixelRollStateValues];
+export type PixelRollState =
+  typeof PixelRollStateValues[keyof typeof PixelRollStateValues];
 
 /** Message send by a Pixel to notify of its rolling state. */
 export class RollState implements Message {
