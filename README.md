@@ -1,4 +1,4 @@
-# Pixels Web Package
+# Pixels Web Connect (Typescript)
 
 This is the Pixels web package for front end web developers.
 It enables communications between Pixels dice and a web browser

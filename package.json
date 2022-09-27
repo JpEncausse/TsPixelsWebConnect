@@ -1,6 +1,6 @@
 {
-  "name": "pixels-library",
-  "version": "0.1.1",
+  "name": "@systemic-games/pixels-web-connect",
+  "version": "0.2.0",
   "description": "Connect to Pixels dice using Web Bluetooth.",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
@@ -34,19 +34,23 @@
     "pixel",
     "pixels",
     "dice",
+    "javascript",
     "typescript",
     "bluetooth",
-    "bluetoothle"
+    "bluetoothle",
+    "bluetooth low energy",
+    "bluetooth le",
+    "ble"
   ],
   "author": "Systemic Games (https://gamewithpixels.com)",
   "license": "MIT",
-  "homepage": "https://github.com/GameWithPixels/PixelsWebPackage",
+  "homepage": "https://github.com/GameWithPixels/TsPixelsWebConnect",
   "repository": {
     "type": "git",
-    "url": "git@github.com:GameWithPixels/PixelsWebPackage.git"
+    "url": "git@github.com:GameWithPixels/TsPixelsWebConnect.git"
   },
   "bugs": {
-    "url": "https://github.com/GameWithPixels/PixelsWebPackage/issues"
+    "url": "https://github.com/GameWithPixels/TsPixelsWebConnect/issues"
   },
   "devDependencies": {
     "@commitlint/cli": "^17.1.2",
