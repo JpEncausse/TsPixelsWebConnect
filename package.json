@@ -1,6 +1,6 @@
 {
   "name": "pixels-library",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Connect to Pixels dice using Web Bluetooth.",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",

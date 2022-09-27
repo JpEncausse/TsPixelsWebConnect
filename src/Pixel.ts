@@ -173,6 +173,9 @@ export interface Pixel extends EventTarget {
  * Represents a Pixel die.
  * Most of its methods require that the instance is connected to the Pixel device.
  * Call the {@link connect} method to initiate a connection.
+ *
+ * Note: extending EventTarget requires ES6 target.
+ * https://stackoverflow.com/questions/51343322/extending-eventtarget-in-typescript-angular-2-when-compiling-to-es5
  */
 export class Pixel extends EventTarget {
   // Store Pixel instances to avoid creating more than one for the same device
