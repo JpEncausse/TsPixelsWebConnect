@@ -1,6 +1,6 @@
 {
-  "name": "@systemic-games/pixels-library",
-  "version": "0.0.2",
+  "name": "pixels-library",
+  "version": "0.1.0",
   "description": "Connect to Pixels dice using Web Bluetooth.",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
@@ -22,8 +22,7 @@
     "lint": "eslint \"src/**/*.{js,jsx,ts,tsx}\" --cache",
     "test": "jest --no-cache --runInBand",
     "test:cov": "jest --coverage --no-cache --runInBand",
-    "docs": "npx typedoc",
-    "addscope": "node tools/packagejson name @systemic-games/pixels-library"
+    "docs": "npx typedoc"
   },
   "publishConfig": {
     "access": "public"
