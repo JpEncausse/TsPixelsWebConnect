@@ -808,6 +808,20 @@
   dependencies:
     "@sinonjs/commons" "^1.7.0"
 
+"@systemic-games/pixels-core-animation@^0.4.0":
+  version "0.4.0"
+  resolved "https://registry.yarnpkg.com/@systemic-games/pixels-core-animation/-/pixels-core-animation-0.4.0.tgz#d51d3e6ce74517e7a71c7ac913819fb2285210fa"
+  integrity sha512-D1ZjbC1tIZH2h1nFLLpbU2FW9fKU9nLI4Yd2EG1XhTow1Ma+MGdPqdCcP5N/D/LDKY53FEeI3Rbg+xjjOtnJww==
+  dependencies:
+    "@systemic-games/pixels-core-utils" "^0.5.0"
+
+"@systemic-games/pixels-core-utils@^0.5.0":
+  version "0.5.0"
+  resolved "https://registry.yarnpkg.com/@systemic-games/pixels-core-utils/-/pixels-core-utils-0.5.0.tgz#4dbbf7e01fb585bf7794399e70b46d80e239fe10"
+  integrity sha512-PgOOR/NVHn6/FcXoEmYTzO186k8JiZIo5P00K7pAjWFvpuIZ2jeFmdfOb+5MCqca/Q/O+MIwYQlsLFS/LcZ8nA==
+  dependencies:
+    reflect-metadata "^0.1.13"
+
 "@tsconfig/node10@^1.0.7":
   version "1.0.9"
   resolved "https://registry.yarnpkg.com/@tsconfig/node10/-/node10-1.0.9.tgz#df4907fc07a886922637b15e02d4cebc4c0021b2"

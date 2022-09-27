@@ -1,8 +1,19 @@
 import {
+  Color,
+  DataSet,
+  toColor32,
+} from "@systemic-games/pixels-core-animation";
+import {
+  assert,
+  byteSizeOf,
+  safeAssign,
+} from "@systemic-games/pixels-core-utils";
+import Constants from "./Constants";
+import exponentialBackOff from "./exponentialBackOff";
+import {
   MessageTypeValues,
   MessageType,
   MessageOrType,
-  getMessageType,
   isMessage,
   getMessageName,
   serializeMessage,
@@ -12,21 +23,40 @@ import {
   BatteryLevel,
   Rssi,
   Blink,
+  PixelMessage,
+  getMessageType,
+  TransferAnimationSet,
+  TransferAnimationSetAck,
+  TransferTestAnimationSet,
+  TransferTestAnimationSetAck,
+  TransferInstantAnimationsSetAckTypeValues,
+  TransferInstantAnimationSet,
+  TransferInstantAnimationSetAck,
+  BulkSetup,
+  BulkData,
+  PlayInstantAnimation,
 } from "./Messages";
-
-import { exponentialBackOff, Mutex } from "./Utils";
-
-/** Pixel dice service UUID. */
-export const serviceUuid = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
-
-/** Pixel dice notify characteristic UUID. */
-export const notifyCharacteristicUuid = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
-
-/** Pixel dice write characteristic UUID. */
-export const writeCharacteristicUuid = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
+import Mutex from "./Mutex";
 
 /**
- *  Peripheral connection events.
+ * Available dice types.
+ * @enum
+ */
+export const DiceTypeValues = {
+  D4: "d4",
+  D6: "d6",
+  D8: "d8",
+  D10: "d10",
+  D00: "d00",
+  D12: "d12",
+  D20: "d20",
+} as const;
+
+/** The "enum" type for  {@link DiceTypeValues}. */
+export type DiceType = typeof DiceTypeValues[keyof typeof DiceTypeValues];
+
+/**
+ * Peripheral connection events.
  * @enum
  */
 export const ConnectionEventValues = {
@@ -39,7 +69,8 @@ export const ConnectionEventValues = {
   /** Raised when the peripheral fails to connect, the reason for the failure is also given. */
   FailedToConnect: "failedToConnect",
 
-  /** Raised after a Connected event, once the required services have been discovered. */
+  /** Raised after a Connected event, once the required services have been discovered
+   * and we have die info. */
   Ready: "ready",
 
   /** Raised at the beginning of a user initiated disconnect. */
@@ -87,35 +118,55 @@ export const ConnectionEventReasonValues = {
 export type ConnectionEventReason =
   typeof ConnectionEventReasonValues[keyof typeof ConnectionEventReasonValues];
 
-/** Callable for a BLE peripheral connection event, with the reason. */
-export type ConnectionEventFunction = (
-  event: ConnectionEvent,
-  reason: ConnectionEventReason
-) => void;
+/** Type for "ConnectionEvent" events */
+export interface ConnectionEventData {
+  event: ConnectionEvent;
+  reason: ConnectionEventReason;
+}
 
-// Store Pixel instances to avoid creating more than one for the same device
-const _pixels = new Map<BluetoothDevice, Pixel>();
+/** Event map for {@link Pixel} class. */
+export interface PixelEventMap {
+  message: CustomEvent<MessageOrType>;
+  connectionEvent: CustomEvent<ConnectionEventData>; //TODO connectionEvent => connectionStatus
+}
 
-/**
- * Request user to select a Pixel to connect to.
- * Pixels instances are kept and returned if the same die is selected again.
- * @param connEv The connection event callback.
- * @returns A promise that resolves to a {@link Pixel} instance.
- */
-export async function requestPixel(
-  connEv?: ConnectionEventFunction
-): Promise<Pixel> {
-  // Request user to select a Pixel
-  const device = await navigator.bluetooth.requestDevice({
-    filters: [{ services: [serviceUuid] }],
-  });
-  // Keep Pixel instances
-  let pixel = _pixels.get(device);
-  if (!pixel) {
-    pixel = new Pixel(device, connEv);
-    _pixels.set(device, pixel);
-  }
-  return pixel;
+//TODO
+interface PixelCustomEventMap {
+  message: MessageOrType;
+  connectionEvent: ConnectionEventData;
+}
+
+export interface Pixel extends EventTarget {
+  addEventListener<K extends keyof PixelEventMap>(
+    type: K,
+    listener: (this: Pixel, ev: PixelEventMap[K]) => void,
+    options?: boolean | AddEventListenerOptions
+  ): void;
+  addEventListener(
+    type: `message${keyof typeof MessageTypeValues}`,
+    listener: (this: Pixel, ev: CustomEvent<MessageOrType>) => void,
+    options?: boolean | AddEventListenerOptions
+  ): void;
+  // addEventListener(
+  //   type: string,
+  //   listener: EventListenerOrEventListenerObject,
+  //   options?: boolean | AddEventListenerOptions
+  // ): void;
+  removeEventListener<K extends keyof PixelEventMap>(
+    type: K,
+    listener: (this: Pixel, ev: PixelEventMap[K]) => void,
+    options?: boolean | EventListenerOptions
+  ): void;
+  removeEventListener(
+    type: `message${keyof typeof MessageTypeValues}`,
+    listener: (this: Pixel, ev: CustomEvent<MessageOrType>) => void,
+    options?: boolean | AddEventListenerOptions
+  ): void;
+  // removeEventListener(
+  //   type: string,
+  //   listener: EventListenerOrEventListenerObject,
+  //   options?: boolean | EventListenerOptions
+  // ): void;
 }
 
 /**
@@ -123,14 +174,45 @@ export async function requestPixel(
  * Most of its methods require that the instance is connected to the Pixel device.
  * Call the {@link connect} method to initiate a connection.
  */
-export class Pixel {
+export class Pixel extends EventTarget {
+  // Store Pixel instances to avoid creating more than one for the same device
+  static _pixels = new Map<BluetoothDevice, Pixel>();
+
+  /**
+   * Request user to select a Pixel to connect to.
+   * Pixels instances are kept and returned if the same die is selected again.
+   * @param connEv The connection event callback.
+   * @returns A promise that resolves to a {@link Pixel} instance.
+   */
+  static async requestPixel(): Promise<Pixel> {
+    if (!navigator?.bluetooth?.requestDevice) {
+      throw {
+        name: "NotSupportedError",
+        message:
+          "Bluetooth is not available, check that you're running in a secure environment " +
+          "and that Web Bluetooth is enabled.",
+      };
+    }
+    // Request user to select a Pixel
+    const device = await navigator.bluetooth.requestDevice({
+      filters: [{ services: [Constants.PixelServiceUuid] }],
+    });
+    // Keep Pixel instances
+    let pixel = Pixel._pixels.get(device);
+    if (!pixel) {
+      pixel = new Pixel(device);
+      Pixel._pixels.set(device, pixel);
+    }
+    return pixel;
+  }
+
+  // Private members
   private readonly _device: BluetoothDevice;
   private readonly _name: string;
-  private readonly _eventTarget = new EventTarget();
   private readonly _connMtx = new Mutex();
   private _connected = false;
+  private _connecting = false; // TODO Merge with above?
   private _reconnect = false;
-  private _connEv?: ConnectionEventFunction = undefined;
   private _session?: Session = undefined;
   private _info?: IAmADie = undefined;
 
@@ -144,6 +226,11 @@ export class Pixel {
     return this._connected && (this._device.gatt?.connected ?? false);
   }
 
+  /** Indicates whether the Pixel is connected but not yet ready to communicate.*/
+  get initializing(): boolean {
+    return this._connecting || (this.connected && !this.ready);
+  }
+
   /** Indicates whether the Pixel is ready. */
   get ready(): boolean {
     return this.connected && this._info !== undefined;
@@ -154,20 +241,32 @@ export class Pixel {
     return this._info;
   }
 
+  /** Gets the die type, or undefined if not connected. */
+  get type(): DiceType | undefined {
+    return this.info ? DiceTypeValues.D20 : undefined;
+  }
+
+  /** Gets the unique Pixel id for the die, or 0 if not connected. */
+  get pixelId(): number {
+    return this._info?.pixelId ?? 0;
+  }
+
   /**
    * Instantiates a Pixel from a Bluetooth device.
    * @param device The Bluetooth device to use.
-   * @param connEv The connection event callback.
    */
-  constructor(device: BluetoothDevice, connEv?: ConnectionEventFunction) {
+  constructor(device: BluetoothDevice) {
+    super();
     this._device = device;
     if (!device.name) {
-      throw Error("Device has no name");
+      throw {
+        name: "NetworkError",
+        message: "Bluetooth device has no name",
+      };
     }
 
     // Store name and connection event handler
     this._name = device.name;
-    this._connEv = connEv;
 
     // Subscribe to disconnect event
     device.addEventListener("gattserverdisconnected", (/*ev: Event*/) => {
@@ -187,7 +286,7 @@ export class Pixel {
 
       // Reset internal state
       this._connected = false;
-      this._session = undefined; // Note: we shouldn't need to unsubscribe since we are got disconnected anyways
+      this._session = undefined; // Note: we shouldn't need to unsubscribe since we got disconnected anyways
       this._info = undefined;
 
       // Notify disconnection
@@ -229,10 +328,14 @@ export class Pixel {
       if (server) {
         if (!server.connected) {
           // Attempt to connect.
-          this.log("Connecting");
-          this.notifyConnEv(ConnectionEventValues.Connecting);
-          await server.connect();
-
+          this._connecting = true;
+          try {
+            this.log("Connecting");
+            this.notifyConnEv(ConnectionEventValues.Connecting);
+            await server.connect();
+          } finally {
+            this._connecting = false;
+          }
           // Notify connected
           this._connected = true;
           this.notifyConnEv(ConnectionEventValues.Connected);
@@ -244,12 +347,14 @@ export class Pixel {
           if (!this._session) {
             // Create session
             this.log("Getting service and characteristics");
-            const service = await server.getPrimaryService(serviceUuid);
+            const service = await server.getPrimaryService(
+              Constants.PixelServiceUuid
+            );
             const notifyCharacteristic = await service.getCharacteristic(
-              notifyCharacteristicUuid
+              Constants.PixelNotifyCharacteristicUuid
             );
             const writeCharacteristic = await service.getCharacteristic(
-              writeCharacteristicUuid
+              Constants.PixelWriteCharacteristicUuid
             );
             this._session = new Session(
               service,
@@ -257,24 +362,27 @@ export class Pixel {
               writeCharacteristic,
               this.log.bind(this)
             );
+
             this.log("Subscribing");
             await this._session.subscribe((dv: DataView) =>
               this.onValueChanged(dv)
             );
 
             // Identify Pixel
-            if (this._session) {
-              this.log("Waiting on identification message");
-              const response = await this.sendAndWaitForMsg(
-                MessageTypeValues.WhoAreYou,
-                MessageTypeValues.IAmADie
-              );
+            this.log("Waiting on identification message");
+            const response = await this.sendAndWaitForResponse(
+              MessageTypeValues.WhoAreYou,
+              MessageTypeValues.IAmADie
+            );
 
-              // Check that we weren't disconnected
-              if (this.connected) {
-                this._info = info = response as IAmADie;
-              }
+            if (!this._session) {
+              throw {
+                name: "NetworkError",
+                message: `Pixel '${this._name}' got disconnected while identifying`,
+              };
             }
+
+            this._info = info = response as IAmADie;
           }
         });
         if (info && this._info === info) {
@@ -292,31 +400,34 @@ export class Pixel {
 
     // Attempt to connect multiple times when autoReconnect is true
     const autoReconnect = this._reconnect;
+    const name = this._name;
     // Prevent another automatic reconnection to happen while already doing it
     this._reconnect = false;
-    await exponentialBackOff({
-      retries: autoReconnect ? 4 : 0,
-      delay: 2,
-      toTry: doConnect,
-      success: () => {
+    await exponentialBackOff(
+      autoReconnect ? 4 : 0,
+      2,
+      doConnect,
+      () => {
         // Restore auto reconnect flag ony if successful
         this._reconnect = autoReconnect;
       },
-      fail: (error) => {
+      (error) => {
         this.log(
-          `Failed to ${autoReconnect ? "re" : ""}connect with error: ${error}`
+          `Failed to ${autoReconnect ? "re" : ""}connect to ` +
+            `Pixel '${name}' with error: ${error}`
         );
         this.notifyConnEv(
           ConnectionEventValues.FailedToConnect,
           ConnectionEventReasonValues.Timeout
         );
         throw error;
-      },
-    });
+      }
+    );
   }
 
   /** Immediately disconnects from the Pixel. */
   disconnect(): void {
+    //TODO prevent automatically reconnecting
     const server = this._device.gatt;
     if (server?.connected) {
       this.notifyConnEv(ConnectionEventValues.Disconnecting);
@@ -337,33 +448,106 @@ export class Pixel {
   }
 
   /**
-   * Register a callback to be invoked on receiving messages of a given type.
+   * Register a listener to be invoked on receiving messages of a given type.
+   * This helper method calls {@link addEventListener}.
+   *
    * @param msgType The type of message to watch for.
-   * @param callback The callback that will be invoked when a message of the given type is received.
+   * @param listener The listener that will be invoked when a message of the given type is received.
    * @param options Usual event listener options.
    */
   addMessageListener(
     msgType: MessageType,
-    callback: EventListenerOrEventListenerObject | null,
+    listener: (this: Pixel, ev: CustomEvent<MessageOrType>) => void,
     options?: AddEventListenerOptions | boolean
   ): void {
-    const name = getMessageName(msgType);
-    this._eventTarget.addEventListener(name, callback, options);
+    this.addEventListener(
+      `message${getMessageName(msgType)}`,
+      listener,
+      options
+    );
   }
 
   /**
-   * Unregister a callback invoked on receiving messages of the same type and options.
+   * Unregister a listener invoked on receiving messages of the same type and options.
+   * This helper method calls {@link removeEventListener}.
+   *
    * @param msgType The type of message to watch for.
-   * @param callback The callback to unregister.
+   * @param listener The listener to unregister.
    * @param options Usual event listener options.
    */
   removeMessageListener(
     msgType: MessageType,
-    callback: EventListenerOrEventListenerObject | null,
+    listener: (this: Pixel, ev: CustomEvent) => void,
     options?: EventListenerOptions | boolean
   ): void {
-    const name = getMessageName(msgType);
-    this._eventTarget.removeEventListener(name, callback, options);
+    this.removeEventListener(
+      `message${getMessageName(msgType)}`,
+      listener,
+      options
+    );
+  }
+
+  async sendMessage(msgOrTypeToSend: MessageOrType): Promise<void> {
+    // Get the session object, throws an error if invalid
+    const session = this._session;
+    if (!session) {
+      throw {
+        name: "NetworkError",
+        message: `Pixel '${this._name}' not ready`,
+      };
+    }
+    await session.sendMessage(msgOrTypeToSend);
+  }
+
+  /**
+   * Send a message and wait for a specific reply.
+   * @param msgOrTypeToSend
+   * @param expectedMsgType
+   * @param timeoutMs
+   * @returns
+   */
+  async sendAndWaitForResponse(
+    msgOrTypeToSend: MessageOrType,
+    expectedMsgType: MessageType,
+    timeoutMs = 5000
+  ): Promise<MessageOrType> {
+    // Get the session object, throws an error if invalid
+    const session = this._session;
+    if (!session) {
+      throw {
+        name: "NetworkError",
+        message: `Pixel '${this._name}' not ready`,
+      };
+    }
+    const result = await Promise.all([
+      this.waitForMsg(expectedMsgType, timeoutMs),
+      session.sendMessage(msgOrTypeToSend),
+    ]);
+    return result[0];
+  }
+
+  /**
+   * Send a message and wait for a specific reply.
+   * @param msgOrType
+   * @param responseMsgClass
+   * @returns
+   */
+  async sendAndWaitForResponseObj<T extends PixelMessage>(
+    msgOrType: MessageOrType,
+    responseMsgClass: new () => T
+  ): Promise<T> {
+    const msg = await this.sendAndWaitForResponse(
+      msgOrType,
+      getMessageType(responseMsgClass)
+    );
+    return msg as T;
+  }
+
+  /**
+   *
+   */
+  async startCalibration(): Promise<void> {
+    await this._session?.sendMessage(MessageTypeValues.Calibrate);
   }
 
   /**
@@ -371,7 +555,7 @@ export class Pixel {
    * @returns A promise revolving to an object with the roll state information.
    */
   async getRollState(): Promise<RollState> {
-    const response = await this.sendAndWaitForMsg(
+    const response = await this.sendAndWaitForResponse(
       MessageTypeValues.RequestRollState,
       MessageTypeValues.RollState
     );
@@ -383,7 +567,7 @@ export class Pixel {
    * @returns A promise revolving to an object with the batter level information.
    */
   async getBatteryLevel(): Promise<BatteryLevel> {
-    const response = await this.sendAndWaitForMsg(
+    const response = await this.sendAndWaitForResponse(
       MessageTypeValues.RequestBatteryLevel,
       MessageTypeValues.BatteryLevel
     );
@@ -395,7 +579,7 @@ export class Pixel {
    * @returns A promise revolving to the RSSI value, between 0 and 65535.
    */
   async getRssi(): Promise<number> {
-    const response = await this.sendAndWaitForMsg(
+    const response = await this.sendAndWaitForResponse(
       MessageTypeValues.RequestRssi,
       MessageTypeValues.Rssi
     );
@@ -405,15 +589,325 @@ export class Pixel {
   /**
    * Requests the Pixel to blink and wait for a confirmation.
    * @param color Blink color.
-   * @param count Number of blinks.
-   * @param duration Total duration in milliseconds.
+   * @param options.count Number of blinks.
+   * @param options.duration Total duration in milliseconds.
+   * @param options.fade Amount of in and out fading, 0: sharp transition, 1: max fading.
    * @returns A promise.
    */
-  async blink(color: number, count: number, duration = 3000): Promise<void> {
-    await this.sendAndWaitForMsg(
-      new Blink(count, color, duration),
+  async blink(
+    color: Color,
+    options?: {
+      count?: number;
+      duration?: number;
+      fade?: number;
+    }
+  ): Promise<void> {
+    const blinkMsg = safeAssign(new Blink(), {
+      color: toColor32(color),
+      count: options?.count ?? 1,
+      duration: options?.duration ?? 1000,
+      fade: 255 * (options?.fade ?? 0),
+    });
+    await this.sendAndWaitForResponse(
+      blinkMsg,
       MessageTypeValues.BlinkFinished
     );
+  }
+
+  /**
+   * Requests the Pixel to stop all animations currently playing.
+   */
+  async stopAllAnimations(): Promise<void> {
+    await this.sendMessage(MessageTypeValues.StopAllAnimations);
+  }
+
+  /**
+   * Uploads the given data set of animations to the Pixel flash memory.
+   * @param dataSet The data set to upload.
+   * @param progressCallback An optional callback that is called as the operation progresses
+   *                         with the progress value being between 0 an 1.
+   */
+  async transferDataSet(
+    dataSet: DataSet,
+    progressCallback?: (progress: number) => void
+  ): Promise<void> {
+    const transferMsg = safeAssign(new TransferAnimationSet(), {
+      paletteSize: dataSet.animationBits.getPaletteSize(),
+      rgbKeyFrameCount: dataSet.animationBits.getRgbKeyframeCount(),
+      rgbTrackCount: dataSet.animationBits.getRgbTrackCount(),
+      keyFrameCount: dataSet.animationBits.getKeyframeCount(),
+      trackCount: dataSet.animationBits.getTrackCount(),
+      animationCount: dataSet.animations.length,
+      animationSize: dataSet.animations.reduce(
+        (acc, anim) => acc + byteSizeOf(anim),
+        0
+      ),
+      conditionCount: dataSet.conditions.length,
+      conditionSize: dataSet.conditions.reduce(
+        (acc, cond) => acc + byteSizeOf(cond),
+        0
+      ),
+      actionCount: dataSet.actions.length,
+      actionSize: dataSet.actions.reduce(
+        (acc, action) => acc + byteSizeOf(action),
+        0
+      ),
+      ruleCount: dataSet.rules.length,
+    });
+
+    const transferAck = await this.sendAndWaitForResponseObj(
+      transferMsg,
+      TransferAnimationSetAck
+    );
+    if (transferAck.result) {
+      // Upload data
+      const data = dataSet.toByteArray();
+      assert(
+        data.length === dataSet.computeDataSetByteSize(),
+        "Incorrect computation of computeDataSetByteSize()"
+      );
+      const hash = DataSet.computeHash(data);
+      const hashStr = (hash >>> 0).toString(16).toUpperCase();
+      this.log(
+        "Ready to receive dataset, " +
+          `byte array should be ${data.length} bytes ` +
+          `and hash 0x${hashStr}`
+      );
+
+      await this.uploadBulkDataWithAck(
+        MessageTypeValues.TransferAnimationSetFinished,
+        data,
+        progressCallback
+      );
+    } else {
+      const dataSize = dataSet.computeDataSetByteSize();
+      throw {
+        name: "NetworkError",
+        message:
+          `Pixel '${this._name}' doesn't have enough memory to ` +
+          `transfer ${dataSize} bytes`,
+      };
+    }
+  }
+
+  /**
+   * Plays the (single) LEDs animation included in the given data set.
+   * @param dataSet The data set containing just one animation to play.
+   * @param progressCallback An optional callback that is called as the operation progresses
+   *                         with the progress value being between 0 an 1.
+   */
+  async playTestAnimation(
+    dataSet: DataSet,
+    progressCallback?: (progress: number) => void
+  ): Promise<void> {
+    assert(dataSet.animations.length >= 1, "No animation in DataSet");
+
+    // Prepare the Pixel
+    const data = dataSet.toSingleAnimationByteArray();
+    const hash = DataSet.computeHash(data);
+    const prepareDie = safeAssign(new TransferTestAnimationSet(), {
+      paletteSize: dataSet.animationBits.getPaletteSize(),
+      rgbKeyFrameCount: dataSet.animationBits.getRgbKeyframeCount(),
+      rgbTrackCount: dataSet.animationBits.getRgbTrackCount(),
+      keyFrameCount: dataSet.animationBits.getKeyframeCount(),
+      trackCount: dataSet.animationBits.getTrackCount(),
+      animationSize: byteSizeOf(dataSet.animations[0]),
+      hash,
+    });
+
+    const ack = await this.sendAndWaitForResponseObj(
+      prepareDie,
+      TransferTestAnimationSetAck
+    );
+
+    switch (ack.ackType) {
+      case TransferInstantAnimationsSetAckTypeValues.Download:
+        {
+          // Upload data
+          const hashStr = (hash >>> 0).toString(16).toUpperCase();
+          this.log(
+            "Ready to receive test dataset, " +
+              `byte array should be: ${data.length} bytes ` +
+              `and hash 0x${hashStr}`
+          );
+          await this.uploadBulkDataWithAck(
+            MessageTypeValues.TransferTestAnimationSetFinished,
+            data,
+            progressCallback
+          );
+        }
+        break;
+
+      case TransferInstantAnimationsSetAckTypeValues.UpToDate:
+        // Nothing to do
+        this.log("Test animation is already up-to-date");
+        break;
+
+      default:
+        throw {
+          name: "NetworkError",
+          message: `Pixel '${this._name}' got unknown ackType: ${ack.ackType}`,
+        };
+    }
+  }
+
+  /**
+   * Uploads the given data set of animations to the Pixel RAM memory.
+   * Those animations are lost when the Pixel goes to sleep, is turned off or is restarted.
+   * @param dataSet The data set to upload.
+   * @param progressCallback An optional callback that is called as the operation progresses
+   *                         with the progress value being between 0 an 1.
+   */
+  async transferInstantAnimations(
+    dataSet: DataSet,
+    progressCallback?: (progress: number) => void
+  ): Promise<void> {
+    assert(dataSet.animations.length >= 1, "No animation in DataSet");
+
+    // Prepare the Pixel
+    const data = dataSet.toAnimationsByteArray();
+    const hash = DataSet.computeHash(data);
+    const prepareDie = safeAssign(new TransferInstantAnimationSet(), {
+      paletteSize: dataSet.animationBits.getPaletteSize(),
+      rgbKeyFrameCount: dataSet.animationBits.getRgbKeyframeCount(),
+      rgbTrackCount: dataSet.animationBits.getRgbTrackCount(),
+      keyFrameCount: dataSet.animationBits.getKeyframeCount(),
+      trackCount: dataSet.animationBits.getTrackCount(),
+      animationCount: dataSet.animations.length,
+      animationSize: dataSet.animations.reduce(
+        (acc, anim) => acc + byteSizeOf(anim),
+        0
+      ),
+      hash,
+    });
+
+    const ack = await this.sendAndWaitForResponseObj(
+      prepareDie,
+      TransferInstantAnimationSetAck
+    );
+
+    switch (ack.ackType) {
+      case TransferInstantAnimationsSetAckTypeValues.Download:
+        {
+          // Upload data
+          const hashStr = (hash >>> 0).toString(16).toUpperCase();
+          this.log(
+            "Ready to receive instant animations, " +
+              `byte array should be: ${data.length} bytes ` +
+              `and hash 0x${hashStr}`
+          );
+          await this.uploadBulkDataWithAck(
+            MessageTypeValues.TransferInstantAnimationSetFinished,
+            data,
+            progressCallback
+          );
+        }
+        break;
+
+      case TransferInstantAnimationsSetAckTypeValues.UpToDate:
+        // Nothing to do
+        this.log("Instant animations are already up-to-date");
+        break;
+
+      default:
+        throw {
+          name: "NetworkError",
+          message: `Pixel '${this._name}' got unknown ackType: ${ack.ackType}`,
+        };
+    }
+  }
+
+  /**
+   * Plays the instant animation at the given index.
+   * See @see transferInstantAnimations().
+   * @param animIndex The index of the instant animation to play.
+   */
+  async playInstantAnimation(animIndex: number): Promise<void> {
+    const play = new PlayInstantAnimation();
+    play.animation = animIndex;
+    await this._session?.sendMessage(play);
+  }
+
+  // Upload the given data to the Pixel
+  private async uploadBulkDataWithAck(
+    ackType: MessageType,
+    data: ArrayBuffer,
+    progressCallback?: (progress: number) => void
+  ): Promise<void> {
+    let programmingFinished = false;
+    let stopWaiting: (() => void) | undefined;
+    const onFinished = () => {
+      programmingFinished = true;
+      if (stopWaiting) {
+        stopWaiting();
+        stopWaiting = undefined;
+      }
+    };
+    this.addMessageListener(ackType, onFinished, { once: true });
+    try {
+      await this.uploadBulkData(data, progressCallback);
+      this.log("Done sending dataset, waiting for Pixel to finish programming");
+
+      try {
+        const promise = new Promise<void>((resolve, reject) => {
+          if (programmingFinished) {
+            // Programming may already be finished
+            resolve();
+          } else {
+            const timeoutId = setTimeout(() => {
+              reject();
+            }, Constants.AckMessageTimeout);
+            stopWaiting = () => {
+              clearTimeout(timeoutId);
+              resolve();
+            };
+          }
+        });
+        await promise;
+      } catch (error) {
+        throw {
+          name: "NetworkError",
+          message: `Timeout waiting on Pixel '${this._name}' to confirm programming`,
+        };
+      }
+      this.log("Programming done");
+    } finally {
+      this.removeMessageListener(ackType, onFinished);
+    }
+  }
+
+  // Upload the given data to the Pixel
+  private async uploadBulkData(
+    data: ArrayBuffer,
+    progressCallback?: (progress: number) => void
+  ): Promise<void> {
+    let remainingSize = data.byteLength;
+    this.log(`Sending ${remainingSize} bytes of bulk data`);
+    progressCallback?.(0);
+
+    // Send setup message
+    const setupMsg = new BulkSetup();
+    setupMsg.size = remainingSize;
+    await this.sendAndWaitForResponse(setupMsg, MessageTypeValues.BulkSetupAck);
+    this.log("Ready for receiving data");
+
+    // Then transfer data
+    let offset = 0;
+    while (remainingSize > 0) {
+      const dataMsg = new BulkData();
+      dataMsg.offset = offset;
+      dataMsg.size = Math.min(remainingSize, Constants.MaxMessageSize);
+      dataMsg.data = data.slice(offset, offset + dataMsg.size);
+
+      //TODO test disconnecting die in middle of transfer
+      await this.sendAndWaitForResponse(dataMsg, MessageTypeValues.BulkDataAck);
+
+      remainingSize -= dataMsg.size;
+      offset += dataMsg.size;
+      progressCallback?.(offset / data.byteLength);
+    }
+
+    this.log("Finished sending bulk data");
   }
 
   // Log the given message prepended with a timestamp and the Pixel name
@@ -421,56 +915,52 @@ export class Pixel {
     if (isMessage(msg)) {
       console.log(msg);
     } else {
-      console.log(`[${new Date().toISOString()}] Pixel ${this._name}: ${msg}`);
+      console.log(`[Pixel ${this._name}]`, msg);
     }
+  }
+
+  // Type-safe dispatch
+  private dispatchCustomEv<K extends keyof PixelCustomEventMap>(
+    type: K,
+    data: PixelCustomEventMap[K]
+  ): boolean {
+    return super.dispatchEvent(
+      new CustomEvent<PixelCustomEventMap[K]>(type, { detail: data })
+    );
   }
 
   // Notify of connection event
   private notifyConnEv(
-    ev: ConnectionEvent,
+    connEv: ConnectionEvent,
     reason: ConnectionEventReason = ConnectionEventReasonValues.Success
-  ): void {
-    if (this._connEv) {
-      this._connEv(ev, reason);
-    }
-  }
-
-  // Get the session object, throws an error if invalid
-  private checkAndGetSession(): Session {
-    if (this._session) {
-      return this._session;
-    } else {
-      throw {
-        name: "NetworkError",
-        message: "Pixel not ready",
-      };
-    }
+  ): boolean {
+    return this.dispatchCustomEv("connectionEvent", {
+      event: connEv,
+      reason: reason,
+    });
   }
 
   // Callback on notify characteristic value change
   private onValueChanged(dataView: DataView) {
     try {
       const msgOrType = deserializeMessage(dataView.buffer);
+      const msgName = getMessageName(msgOrType);
       if (msgOrType) {
-        this.log(`Received message of type ${getMessageType(msgOrType)}`);
+        this.log(`Received message ${msgName} (${getMessageType(msgOrType)})`);
         if (typeof msgOrType !== "number") {
           // Log message contents
           this.log(msgOrType);
         }
         // Dispatch generic message event
-        this._eventTarget.dispatchEvent(
-          new CustomEvent("message", { detail: msgOrType })
-        );
+        this.dispatchCustomEv("message", msgOrType);
         // Dispatch specific message event
-        const name = getMessageName(msgOrType);
-        this._eventTarget.dispatchEvent(
-          new CustomEvent(name, { detail: msgOrType })
-        );
+        const name = `message${msgName}`;
+        this.dispatchEvent(new CustomEvent(name, { detail: msgOrType }));
       } else {
         this.log("Received invalid message!");
       }
     } catch (error) {
-      this.log("ValueChanged error: " + error);
+      this.log("CharacteristicValueChanged error: " + error);
     }
   }
 
@@ -480,30 +970,20 @@ export class Pixel {
     timeoutMs = 5000
   ): Promise<MessageOrType> {
     return new Promise((resolve, reject) => {
-      const onMessage = (evt: Event) => {
-        const msgOrType = (evt as CustomEvent).detail as MessageOrType;
-        resolve(msgOrType);
+      const onMessage = (evt: CustomEvent<MessageOrType>) => {
+        resolve(evt.detail);
       };
       setTimeout(() => {
         this.removeMessageListener(expectedMsgType, onMessage);
-        reject(new Error("Timeout waiting on message"));
+        reject(
+          new Error(
+            `Timeout of ${timeoutMs}ms waiting on message ` +
+              getMessageName(expectedMsgType)
+          )
+        );
       }, timeoutMs);
       this.addMessageListener(expectedMsgType, onMessage, { once: true });
     });
-  }
-
-  // Helper method that sends a message and wait for a reply
-  private async sendAndWaitForMsg(
-    msgOrTypeToSend: MessageOrType,
-    expectedMsgType: MessageType,
-    timeoutMs = 5000
-  ): Promise<MessageOrType> {
-    const session = this.checkAndGetSession();
-    const result = await Promise.all([
-      this.waitForMsg(expectedMsgType, timeoutMs),
-      session.send(msgOrTypeToSend),
-    ]);
-    return result[0];
   }
 }
 
@@ -549,8 +1029,9 @@ class Session {
   }
 
   // Sends a message
-  async send(msgOrType: MessageOrType, withoutResponse?: boolean) {
-    this.log(`Sending message of type ${getMessageType(msgOrType)}`);
+  async sendMessage(msgOrType: MessageOrType, withoutResponse?: boolean) {
+    const msgName = getMessageName(msgOrType);
+    this.log(`Sending message ${msgName} (${getMessageType(msgOrType)})`);
     const data = serializeMessage(msgOrType);
     const promise = withoutResponse
       ? this._write.writeValueWithoutResponse(data)
