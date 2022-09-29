@@ -35,6 +35,9 @@ export default class BleSession extends PixelSession {
       throw new Error("Device not found");
     }
 
+    // Update name
+    this._name = device.name ?? "";
+
     // Subscribe to disconnect event
     // eslint-disable-next-line @typescript-eslint/no-this-alias
     const mySession = this;

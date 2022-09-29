@@ -1,6 +1,6 @@
 {
   "name": "@systemic-games/pixels-web-connect",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Connect to Pixels dice using Web Bluetooth.",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
