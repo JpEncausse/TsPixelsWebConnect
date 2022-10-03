@@ -20,16 +20,11 @@ export default class BleSession extends PixelSession {
   private _notify?: BluetoothRemoteGATTCharacteristic;
   private _write?: BluetoothRemoteGATTCharacteristic;
 
-  // Not available
-  get pixelAddress(): number {
-    return 0;
-  }
-
   get pixelName(): string {
     return this._name;
   }
 
-  async connect(): Promise<BleSession> {
+  async connect(): Promise<void> {
     const device = await findBluetoothDevice(this.pixelSystemId);
     if (!device) {
       throw new Error("Device not found");
@@ -74,12 +69,11 @@ export default class BleSession extends PixelSession {
         this._notifyConnectionEvent("ready");
       }
     }
-    return this;
   }
 
-  async disconnect(): Promise<BleSession> {
-    this._notifyConnectionEvent("disconnecting");
-    return this;
+  async disconnect(): Promise<void> {
+    const device = await findBluetoothDevice(this.pixelSystemId);
+    device?.gatt?.disconnect();
   }
 
   async subscribe(listener: (dataView: DataView) => void): Promise<() => void> {
@@ -109,7 +103,7 @@ export default class BleSession extends PixelSession {
     data: ArrayBuffer,
     withoutResponse?: boolean,
     _timeoutMs?: number // Default is Constants.defaultRequestTimeout
-  ): Promise<BleSession> {
+  ): Promise<void> {
     if (!this._write) {
       throw new Error("No connected");
     }
@@ -118,6 +112,5 @@ export default class BleSession extends PixelSession {
     } else {
       await this._write.writeValueWithResponse(data);
     }
-    return this;
   }
 }

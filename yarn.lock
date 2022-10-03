@@ -808,19 +808,19 @@
   dependencies:
     "@sinonjs/commons" "^1.7.0"
 
-"@systemic-games/pixels-core-animation@^0.4.0":
-  version "0.4.0"
-  resolved "https://registry.npmjs.org/@systemic-games/pixels-core-animation/-/pixels-core-animation-0.4.0.tgz"
-  integrity sha512-D1ZjbC1tIZH2h1nFLLpbU2FW9fKU9nLI4Yd2EG1XhTow1Ma+MGdPqdCcP5N/D/LDKY53FEeI3Rbg+xjjOtnJww==
+"@systemic-games/pixels-core-animation@^0.4.1":
+  version "0.4.1"
+  resolved "https://registry.yarnpkg.com/@systemic-games/pixels-core-animation/-/pixels-core-animation-0.4.1.tgz#a50f27ff515525dd137443076e060786f4b74987"
+  integrity sha512-e3Rj/nM2W/TGAu6OJoD0KAgC7QGQL1rgfZvxE9DkJ2cDfSvvzUE5dWTUwGoAHYunTfXkC30E4LX530YTFDUgrA==
   dependencies:
     "@systemic-games/pixels-core-utils" "^0.5.0"
 
-"@systemic-games/pixels-core-connect@^0.1.1":
-  version "0.1.1"
-  resolved "https://registry.yarnpkg.com/@systemic-games/pixels-core-connect/-/pixels-core-connect-0.1.1.tgz#49623efe30900a3082f495a4ebbe80d6b12d6056"
-  integrity sha512-onse2jATpq/0TEZ7oLsZK1M8Lkw23owqZv+Tc7G1cbu+KNthNIR/jGH7pLq3Be3QjOzSgk3Q7Dm/kE1/HkSj6w==
+"@systemic-games/pixels-core-connect@^0.2.2":
+  version "0.2.2"
+  resolved "https://registry.yarnpkg.com/@systemic-games/pixels-core-connect/-/pixels-core-connect-0.2.2.tgz#6a588cd9a6ad750926479ce63458515217b08822"
+  integrity sha512-LnRIbu3ODQGegEp7DRSvx++Fb8YfzjNfrWR4s0m2WHB/iQbdK3gsfls6Wst2Xd6oTVDJwI3WGd3QyKyfwNsFpw==
   dependencies:
-    "@systemic-games/pixels-core-animation" "^0.4.0"
+    "@systemic-games/pixels-core-animation" "^0.4.1"
     "@systemic-games/pixels-core-utils" "^0.5.0"
 
 "@systemic-games/pixels-core-utils@^0.5.0":
