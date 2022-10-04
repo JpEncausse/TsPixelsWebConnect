@@ -10,11 +10,15 @@ const connect = async (Pixel) => {
     const battery = await pixel.getBatteryLevel();
     console.log(`=> battery: ${battery.level}, ${battery.voltage}v`);
 
-    const rssi = await pixel.getRssi();
+    let rssi = await pixel.getRssi();
     console.log(`=> rssi: ${rssi}`);
+    rssi = await pixel.getRssi();
+    console.log(`=> rssi try 2: ${rssi}`);
+    rssi = await pixel.getRssi();
+    console.log(`=> rssi try 3: ${rssi}`);
 
-    const blink = await pixel.blink(Color.red);
-    console.log(`=> blink: ${blink}`);
+    //const blink = await pixel.blink('red');
+    //console.log(`=> blink: ${blink}`);
 
     // Add listener to get notified when the Pixel roll state changes
     pixel.addEventListener("messageRollState", (ev) => {
@@ -29,4 +33,4 @@ window.requirejs(['/dist/umd/index.js'], (Pixel) => {
     document.addEventListener('click', (event) => {
         connect(Pixel)
     });
-});
+}); 
